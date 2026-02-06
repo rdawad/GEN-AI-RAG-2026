@@ -1,194 +1,3 @@
-# __import__('pysqlite3')
-# import sys
-# sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-# import os
-# import json
-# from langchain_chroma import Chroma
-# import langchain
-# from langchain_core.documents import Document
-# from sentence_transformers import SentenceTransformer 
-# from langchain_huggingface import HuggingFaceEmbeddings
-# from langchain_openai import OpenAIEmbeddings
-# from groq import Groq
-# #from langchain.prompts import PromptTemplate
-# from langchain_core.prompts import PromptTemplate
-# #from langchain.chains import Retrieval
-# #from langchain.chains import RetrievalQA
-# from langchain_classic.chains import RetrievalQA
-# # from langchain.chains import create_retrieval_chain
-# # from langchain.chains.combine_documents import create_stuff_documents_chain
-
-# print("all imports working fine")
-
-# class RAGEngine:
-#     '''langchain, chroma, groq , frontend- streamlit
-#     chain-----backend system
-#     1, load the document
-#     2, create vector DB - chroma db
-#     3, setup a chain(1,2)
-#     4, call groq LLM
-#     5  answer the query '''
-
-#     # def __init__(self, json_path: str= "data.json", embeddings: str = "all-MiniLM-L6-v2"):
-#     #     self.json_path = json_path
-#     #     self.embeddings = SentenceTransformer("all-MiniLM-L6-v2")
-#     #     self.vector_store = None
-#     #     self.qa_chain = None
-
-#     def __init__(self, json_path: str = "data.json"):
-#         self.json_path = json_path
-#         self.embeddings = HuggingFaceEmbeddings(
-#             model_name="sentence-transformers/all-MiniLM-L6-v2"
-#         )
-#         self.vector_store = None
-#         self.qa_chain = None
-
-#     def load_document(self):
-#         "load the json data from data.json file"
-#         with open(self.json_path, 'r') as file:
-#             data = json.load(file)
-
-#         document = []
-
-#         for item in data:
-#             doc = Document(page_content = item['text'], metadata = {"id": item.get('id')})
-#             document.append(doc)
-
-#         return document
-    
-#     # def create_vectorstore(self, documents: list[Document]):
-#     #     vector_store = Chroma(
-#     #         embedding_function = self.embeddings,
-#     #         collection_name="artifacts",
-#     #         persist_directory="./chroma_db",
-#     #     )
-#     #     return self.vector_store
-    
-#     def create_vectorstore(self, documents: list[Document]):
-#         self.vector_store = Chroma.from_documents(
-#             documents=documents,
-#             embedding=self.embeddings,
-#             collection_name="artifacts",
-#             persist_directory="./chroma_db",
-#         )
-#         return self.vector_store
-    
-#     from langchain_groq import ChatGroq
-
-#     def setup_qa_chain(self):
-#         '''
-#         "setup a QA chain and call GROQ api
-#         '''
-#         groq_api_key = os.getenv("groq_api_key")
-#         llm = ChatGroq(
-#             groq_api_key=groq_api_key,
-#             model="openai/gpt-oss-120b",
-#             temperature=1
-#         )
-
-#         chat_completion = llm.chat.completions.create(
-#             messages=[
-#                 {
-#                     "role": "user",
-#                     "content": "use the prompt to amswer the query"
-                    
-#                 }
-#             ],
-#             model="openai/gpt-oss-120b", # <-- Model specified here, not in Groq() init
-#         )
-#         prompt_template = """Use the following context to answer the question, if you don't know the answer, just say I don't have any answer for this question as of now, don't make up on answer
-#         Context: {context}
-#         Question: {question}
-#         Answer:"""
-
-#         PROMPT = PromptTemplate(
-#             input_variables = ["context", "question"],
-#             template = prompt_template
-#         )
-#         retriever = self.vector_store.as_retriever(search_type="similarity", search_kwargs = {"k": 3})
-#         chain_type_kwargs = {"prompt": PROMPT}
-
-#         self.qa_chain = RetrievalQA.from_chain_type(
-#             chat_completion,
-#             chain_type="stuff",
-#             retriever=retriever,
-#             chain_type_kwargs=chain_type_kwargs,
-#             return_source_documents=True
-#         )
-
-#         return self.qa_chain
-    
-#     #from langchain_groq import ChatGroq
-
-#     def setup_qa_chain(self):
-#         llm = Groq(
-#             groq_api_key=os.getenv("groq_api_key"),
-#             model="openai/gpt-oss-120b",
-#             temperature=1
-#         )
-
-#         PROMPT = PromptTemplate(
-#             input_variables=["context", "question"],
-#             template="""
-#             Use the following context to answer the question.
-#             If you don't know the answer, say you don't know.
-
-#             Context: {context}
-#             Question: {question}
-#             Answer:
-#             """
-#         )
-
-#         retriever = self.vector_store.as_retriever(
-#             search_type="similarity",
-#             search_kwargs={"k": 3}
-#         )
-
-#         self.qa_chain = RetrievalQA.from_chain_type(
-#             llm=llm,
-#             chain_type="stuff",
-#             retriever=retriever,
-#             chain_type_kwargs={"prompt": PROMPT},
-#             return_source_documents=True
-#         )
-
-#         return self.qa_chain
-    
-#     def initialize(self):
-#         "initialize the RAG engine"
-#         document = self.load_document()
-#         self.create_vectorstore(document)
-#         self.setup_qa_chain()
-#         print("Rag engine initialized successfully.")
-
-#     def answer_query(self, question:str) -> dict:
-#         """Answer a quesry using QA chain"""
-#         if not self.qa_chain:
-#             raise ValueError("QA chain is not initialized call initialize() first")
-
-#         result = self.qa_chain.invoke({"query": question})
-
-#         retn =  {
-#             "answer": result["result"],
-#             "source_documents": [
-#                 {
-#                     "content": doc.page_content,
-#                     "metadata": doc.metadata
-#                 }
-#                 for doc in result["source_documents"]
-#             ]
-#         }
-#         return retn
-
-
-
-
-    
-
-        
-    
-
-
 __import__('pysqlite3')
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
@@ -197,10 +6,16 @@ import os
 import json
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
-from langchain_classic.chains import RetrievalQA
+
+# Updated imports for LangChain 0.1+
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 
 
 class RAGEngine:
@@ -212,6 +27,7 @@ class RAGEngine:
         )
         self.vector_store = None
         self.qa_chain = None
+        self.chat_history_store = {}  # Store chat histories per session
 
     def load_document(self):
         with open(self.json_path, "r") as f:
@@ -231,6 +47,16 @@ class RAGEngine:
         )
         return self.vector_store
 
+    def get_session_history(self, session_id: str) -> BaseChatMessageHistory:
+        """Get or create chat history for a session"""
+        if session_id not in self.chat_history_store:
+            self.chat_history_store[session_id] = ChatMessageHistory()
+        return self.chat_history_store[session_id]
+
+    def format_docs(self, docs):
+        """Format retrieved documents into a string"""
+        return "\n\n".join(doc.page_content for doc in docs)
+
     def setup_qa_chain(self):
         llm = ChatGroq(
             groq_api_key=os.getenv("GROQ_API_KEY"),
@@ -239,30 +65,43 @@ class RAGEngine:
             max_completion_tokens=8192,
         )
 
-        prompt = PromptTemplate(
-            input_variables=["context", "question"],
-            template="""
-            Use the following context to answer the question.
-            If you don't know the answer, just use your own knowledge base from LLM or search it from google and get the best answer.
-
-            Context: {context}
-            Question: {question}
-            Answer:
-            """
-        )
+        # Create a prompt with chat history
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a helpful AI assistant. Use the following context to answer questions.
+            If you don't know the answer from the context, use your own knowledge.
+            
+            Context: {context}"""),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{input}")
+        ])
 
         retriever = self.vector_store.as_retriever(
             search_type="similarity",
             search_kwargs={"k": 3}
         )
 
-        self.qa_chain = RetrievalQA.from_chain_type(
-            llm=llm,
-            chain_type="stuff",
-            retriever=retriever,
-            chain_type_kwargs={"prompt": prompt},
-            return_source_documents=True
+        # Create a chain that retrieves context based on input
+        def get_context(x):
+            return self.format_docs(retriever.invoke(x["input"]))
+        
+        # Create the RAG chain
+        rag_chain = (
+            RunnablePassthrough.assign(context=get_context)
+            | prompt
+            | llm
+            | StrOutputParser()
         )
+        
+        # Wrap with message history
+        self.qa_chain = RunnableWithMessageHistory(
+            rag_chain,
+            self.get_session_history,
+            input_messages_key="input",
+            history_messages_key="chat_history"
+        )
+        
+        # Store retriever for getting source documents
+        self.retriever = retriever
 
         return self.qa_chain
 
@@ -272,24 +111,44 @@ class RAGEngine:
         self.setup_qa_chain()
         print("RAG engine initialized successfully")
 
-    def answer_query(self, question: str):
+    def answer_query(self, question: str, session_id: str = "default"):
         if not self.qa_chain:
             raise ValueError("Call initialize() first")
 
-        result = self.qa_chain.invoke({"query": question})
+        # Get the answer - pass as dictionary with "input" key
+        answer = self.qa_chain.invoke(
+            {"input": question},
+            config={"configurable": {"session_id": session_id}}
+        )
+        
+        # Get source documents
+        source_docs = self.retriever.invoke(question)
 
         return {
-            "answer": result["result"],
+            "answer": answer,
             "source_documents": [
                 {
                     "content": doc.page_content,
                     "metadata": doc.metadata
                 }
-                for doc in result["source_documents"]
+                for doc in source_docs
             ]
         }
-
-
-
-
     
+    def clear_memory(self, session_id: str = "default"):
+        """Clear the conversation memory for a session"""
+        if session_id in self.chat_history_store:
+            self.chat_history_store[session_id].clear()
+            print(f"Memory cleared for session: {session_id}")
+    
+    def get_chat_history(self, session_id: str = "default"):
+        """Get the current chat history for a session"""
+        if session_id in self.chat_history_store:
+            return self.chat_history_store[session_id].messages
+        return []
+    
+
+# 1 ChatMessageHistory
+# 2. RunnableWithMessageHistory
+# 3. three methods (get session history, clear-chat-history, get-chat-history)
+# 4. changes a qa_chain setup ()

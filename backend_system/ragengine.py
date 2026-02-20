@@ -147,6 +147,9 @@ class RAGEngine:
             return self.chat_history_store[session_id].messages
         return []
     
+    def get_chat_history_day_wise():
+        return []
+    
 
 # 1 ChatMessageHistory
 # 2. RunnableWithMessageHistory
